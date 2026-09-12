@@ -9,62 +9,53 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Regression cover for the 1.7.0 incident: instances were written to {@code world/dimensions/minecraft/}
- * on a server that keeps worlds beside the container, so the copied template landed where nothing reads
- * it. Bukkit then loaded the instance name from the container, found an empty directory, and generated a
- * brand new world — players were teleported to the dungeon's coordinates in raw terrain, underground and
- * in lava, instead of into the map.
+ * Regression cover for the incident that broke dungeons twice.
  * <p>
- * The rule is simply: use the dimension layout only when this server has one.
+ * {@code DefaultInstanceProvider} loads an instance with {@code new WorldCreator(instanceId)}, and Bukkit
+ * resolves that name against {@link org.bukkit.Bukkit#getWorldContainer()}. The copy therefore has exactly
+ * one correct destination — the container — and the vanilla {@code <level>/dimensions/<namespace>/} layout
+ * is never it, however real that folder is on a given server.
+ * <p>
+ * 1.7.0 copied into {@code <level>/dimensions/minecraft/}: the template bytes landed in a directory nothing
+ * reads, Bukkit found an empty folder under the container and generated raw terrain, and players were
+ * teleported to the dungeon's coordinates underground and in lava. 1.7.1 tried to fix it by using that
+ * layout only when the dimensions folder exists — which on the affected server it did (its level directory
+ * is {@code skyworld}), so the bug survived and each run also leaked a full copy of the template.
  */
 class WorldUtilsTargetFolderTest {
 
     @Test
-    void classicLayoutPutsTheInstanceBesideTheContainer(@TempDir Path tmp) {
+    void theInstanceIsAlwaysWrittenBesideTheWorldContainer(@TempDir Path tmp) {
         File container = tmp.resolve("server").toFile();
-        File dimensions = new File(new File(container, "world"), "dimensions"); // never created
 
-        File target = WorldUtils.resolveInstanceFolder(container, dimensions, "SinceDungeon_abc");
-
-        assertEquals(new File(container, "SinceDungeon_abc"), target,
-                "a server with no dimensions directory must receive the instance in its world container,"
-                        + " which is where WorldCreator will look for it");
+        assertEquals(new File(container, "SinceDungeon_abc"),
+                WorldUtils.resolveInstanceFolder(container, "SinceDungeon_abc"),
+                "WorldCreator resolves the instance name against the world container, so the copy must go there");
     }
 
     @Test
-    void dimensionLayoutPutsTheInstanceUnderTheMinecraftNamespace(@TempDir Path tmp) throws Exception {
+    void anExistingDimensionsLayoutDoesNotChangeTheDestination(@TempDir Path tmp) {
         File container = tmp.resolve("server").toFile();
-        File dimensions = new File(new File(container, "world"), "dimensions");
+        File dimensions = new File(new File(container, "skyworld"), "dimensions/minecraft");
         if (!dimensions.mkdirs()) {
             throw new IllegalStateException("could not create " + dimensions);
         }
 
-        File target = WorldUtils.resolveInstanceFolder(container, dimensions, "SinceDungeon_abc");
+        File target = WorldUtils.resolveInstanceFolder(container, "SinceDungeon_abc");
 
-        assertEquals(new File(new File(dimensions, "minecraft"), "SinceDungeon_abc"), target);
+        assertEquals(new File(container, "SinceDungeon_abc"), target,
+                "the production server has a real skyworld/dimensions folder; routing the copy there is what"
+                        + " left Bukkit generating a fresh world under the container");
+        assertEquals(0, dimensions.list().length,
+                "nothing may be written under the dimensions layout — those copies are orphaned and leak disk");
     }
 
     @Test
-    void aMissingDimensionsPathIsTreatedAsClassicLayout(@TempDir Path tmp) {
+    void theInstanceNameIsUsedVerbatim(@TempDir Path tmp) {
         File container = tmp.resolve("server").toFile();
 
-        assertEquals(new File(container, "SinceDungeon_abc"),
-                WorldUtils.resolveInstanceFolder(container, null, "SinceDungeon_abc"));
-    }
-
-    @Test
-    void aFileWhereDimensionsShouldBeIsNotADimensionLayout(@TempDir Path tmp) throws Exception {
-        File container = tmp.resolve("server").toFile();
-        if (!container.mkdirs()) {
-            throw new IllegalStateException("could not create " + container);
-        }
-        File dimensions = new File(container, "dimensions");
-        if (!dimensions.createNewFile()) {
-            throw new IllegalStateException("could not create " + dimensions);
-        }
-
-        assertEquals(new File(container, "SinceDungeon_abc"),
-                WorldUtils.resolveInstanceFolder(container, dimensions, "SinceDungeon_abc"),
-                "isDirectory(), not exists(): a stray file must not be mistaken for the dimension layout");
+        assertEquals(new File(container, "SinceDungeon_Player_deadbeef"),
+                WorldUtils.resolveInstanceFolder(container, "SinceDungeon_Player_deadbeef"),
+                "the folder name is the world name Bukkit will look up; it must not be rewritten");
     }
 }
