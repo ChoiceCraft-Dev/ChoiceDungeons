@@ -9,6 +9,7 @@ import net.danh.sinceDungeon.managers.WorldManager;
 import net.danh.sinceDungeon.models.DungeonGame;
 import net.danh.sinceDungeon.models.DungeonTemplate;
 import net.danh.sinceDungeon.models.WorldFlag;
+import net.danh.sinceDungeon.systems.state.PendingRestoreStore;
 import net.danh.sinceDungeon.systems.party.DefaultPartyProvider;
 import net.danh.sinceDungeon.utils.ColorUtils;
 import net.danh.sinceDungeon.utils.SchedulerCompat;
@@ -351,6 +352,10 @@ public class DungeonListener implements Listener {
         if (logoutReturn != null || inDungeonWorld) {
             rescueFromDungeon(p, parseLogoutLocation(logoutReturn), inDungeonWorld ? loginWorld : null);
         }
+
+        // A run that ended while they were away (hold expired, cleaned up, or a restart) parks their
+        // pre-dungeon inventory on disk. No-op when there is nothing waiting.
+        PendingRestoreStore.applyIfPresent(plugin, p);
     }
 
     /**
@@ -936,11 +941,28 @@ public class DungeonListener implements Listener {
         }
     }
 
+    /**
+     * Weather is a property of the whole world, not of one instance inside it. A copied per-run world
+     * has exactly one owner, so that dungeon's override counts; a shared provider world hosts many runs
+     * at once and no single dungeon may decide for the rest, so only the global value applies there.
+     */
+    private boolean isWorldScopedFlagDisabled(WorldFlag flag, World world) {
+        if (!mayHostDungeon(world)) return false;
+
+        DungeonTemplate template = null;
+        if (world.getName().startsWith(worldPrefix)) {
+            DungeonGame game = plugin.getDungeonManager().getGameByWorld(world.getName());
+            template = game != null ? game.getTemplate() : null;
+        }
+        Boolean override = template != null ? template.settings().worldFlags().get(flag) : null;
+        return !(override != null ? override : globalWorldFlags.getOrDefault(flag, flag.getDefaultValue()));
+    }
+
     // Only natural starts are blocked, so the plugin's own clear-weather setup and admin commands still work
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onWeatherChange(WeatherChangeEvent e) {
         if (e.toWeatherState() && e.getCause() == WeatherChangeEvent.Cause.NATURAL
-                && isFlagDisabled(WorldFlag.WEATHER_CYCLE, e.getWorld().getSpawnLocation())) {
+                && isWorldScopedFlagDisabled(WorldFlag.WEATHER_CYCLE, e.getWorld())) {
             e.setCancelled(true);
         }
     }
@@ -948,7 +970,7 @@ public class DungeonListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onThunderChange(ThunderChangeEvent e) {
         if (e.toThunderState() && e.getCause() == ThunderChangeEvent.Cause.NATURAL
-                && isFlagDisabled(WorldFlag.WEATHER_CYCLE, e.getWorld().getSpawnLocation())) {
+                && isWorldScopedFlagDisabled(WorldFlag.WEATHER_CYCLE, e.getWorld())) {
             e.setCancelled(true);
         }
     }

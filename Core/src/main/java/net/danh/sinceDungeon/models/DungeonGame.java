@@ -13,6 +13,7 @@ import net.danh.sinceDungeon.hooks.MultiverseInventoriesHook;
 import net.danh.sinceDungeon.hooks.PAPIHook;
 import net.danh.sinceDungeon.managers.LivesManager;
 import net.danh.sinceDungeon.managers.TopManager;
+import net.danh.sinceDungeon.systems.state.PendingRestoreStore;
 import net.danh.sinceDungeon.utils.*;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
@@ -916,7 +917,12 @@ public class DungeonGame {
         plugin.getDungeonManager().removeGame(p.getUniqueId());
 
         if (participants == null || participants.isEmpty()) {
-            if (!isCleared) {
+            if (!awaitingRejoin.isEmpty()) {
+                // Someone is still inside their rejoin window, so the run is empty rather than over:
+                // pause it exactly as a quit-triggered hold does. Ending here would destroy their hold
+                // when the last remaining player walks out, runs out of lives, or leaves the party.
+                if (pausedSince < 0) pausedSince = System.currentTimeMillis();
+            } else if (!isCleared) {
                 stop(false, DungeonEndEvent.EndReason.FAILED);
             }
         } else {
@@ -965,7 +971,10 @@ public class DungeonGame {
      */
     private void releaseHeldPlayer(UUID uuid) {
         plugin.getDungeonManager().removeGame(uuid);
-        if (template == null) return;
+        persistPendingRestore(uuid);
+        // Same guard as the disconnect path: a run that was cleared charges nobody for leaving it.
+        // Without this a held player whose team went on to clear the dungeon paid both penalties.
+        if (template == null || isCleared) return;
         if (template.settings().cooldownOnLeave()) {
             applyCooldown(uuid);
         }
@@ -978,9 +987,38 @@ public class DungeonGame {
             if (applyLeavePenalties) {
                 releaseHeldPlayer(uuid);
             } else {
+                // Shutdown path: no penalties, but their items still must not vanish with the game.
                 plugin.getDungeonManager().removeGame(uuid);
+                persistPendingRestore(uuid);
             }
         }
+    }
+
+    private void persistPendingRestore(UUID uuid) {
+        persistPendingRestore(uuid, savedStates.remove(uuid), confiscatedItems.remove(uuid));
+    }
+
+    /**
+     * Parks an absent player's pre-dungeon state on disk. Entering a save-and-restore-stats dungeon
+     * empties their inventory, and this game is about to be cleaned up, so without this the items
+     * are deleted permanently — silently, and only noticed by the player.
+     */
+    private void persistPendingRestore(UUID uuid, PlayerState state, List<ItemStack> taken) {
+        boolean restoreStats = template != null && template.settings().saveAndRestoreStats() && state != null;
+        boolean hasConfiscated = taken != null && !taken.isEmpty();
+        if (!restoreStats && !hasConfiscated) return;
+
+        PendingRestoreStore.save(plugin, uuid, new PendingRestoreStore.Snapshot(
+                restoreStats,
+                state != null ? state.gameMode : null,
+                state != null ? state.health : 0,
+                state != null ? state.foodLevel : 0,
+                state != null ? state.level : 0,
+                state != null ? state.exp : 0f,
+                state != null ? state.inventoryContents : null,
+                state != null ? state.armorContents : null,
+                state != null ? state.extraContents : null,
+                hasConfiscated ? taken : null));
     }
 
     private void deductLeaveLives(UUID uuid, int amount) {
@@ -1381,6 +1419,9 @@ public class DungeonGame {
         PlayerState state = savedStates.remove(p.getUniqueId());
 
         if (!p.isOnline()) {
+            // The player is already gone, so the swap below can never run. Park the snapshot instead of
+            // discarding it: in a save-and-restore-stats run it is the only copy of their inventory.
+            persistPendingRestore(p.getUniqueId(), state, confiscatedItems.remove(p.getUniqueId()));
             plugin.getDungeonManager().removeTransitioning(p.getUniqueId());
             return;
         }
