@@ -39,4 +39,19 @@ subprojects {
         options.encoding = 'UTF-8'
         options.compilerArgs += ['-Xlint:deprecation', '-Xlint:unchecked']
     }
+
+    dependencies {
+        testImplementation platform('org.junit:junit-bom:5.11.4')
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    // `gradlew build` runs these, so CI covers them without a workflow change.
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+        testLogging {
+            events 'failed'
+            exceptionFormat 'full'
+        }
+    }
 }

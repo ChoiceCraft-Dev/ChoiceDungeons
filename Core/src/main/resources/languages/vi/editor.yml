@@ -449,6 +449,15 @@ editor:
       edit_deduct_lives:
         - "&7Nhập số lượng mạng BỊ TRỪ mỗi khi người chơi chết trong Dungeon này."
         - "&7Ví dụ: &a1"
+      edit_deduct_lives_on_leave:
+        - "&7Nhập số lượng mạng BỊ TRỪ khi người chơi rời đi hoặc mất kết nối trước khi hoàn thành."
+        - "&7Ví dụ: &a1 &7(&a0 &7để tắt mức phạt này)"
+      edit_deduct_lives_on_fail:
+        - "&7Nhập số lượng mạng BỊ TRỪ khi Dungeon kết thúc với thất bại."
+        - "&7Ví dụ: &a1 &7(&a0 &7để tắt mức phạt này)"
+      edit_deduct_lives_on_clear:
+        - "&7Nhập số lượng mạng BỊ TRỪ khi Dungeon được hoàn thành."
+        - "&7Ví dụ: &a1 &7(&a0 &7để tắt mức phạt này)"
       create_filename:
         - "&7Nhập ID cho Hầm ngục mới."
         - "&7Quy tắc: &fKhông dấu, không ký tự đặc biệt."

@@ -50,6 +50,7 @@ admin:
     startup_paper_modern: "Đang chạy tối ưu hóa nguyên bản trên Paper 1.21+ | Phiên bản NMS: <nms>"
     startup_paper_legacy: "Đang chạy tối ưu hóa nguyên bản trên Paper 26.1+ | Phiên bản: <version>"
     startup_ready: "[Startup] SinceDungeon đã tải dữ liệu xong."
+    startup_slow: "[Startup] Dữ liệu SinceDungeon vẫn đang tải sau <seconds> giây. Plugin sẽ tiếp tục được bật và người chơi sẽ bị chặn tham gia cho đến khi tải xong."
     startup_failed: "[Startup] SinceDungeon khởi động thất bại: <error>"
     papi_registered: "Đã đăng ký tích hợp PlaceholderAPI cho SinceDungeon thành công."
     papi_missing: "Không tìm thấy PlaceholderAPI. Các placeholder (biến) tùy chỉnh sẽ bị vô hiệu hóa."

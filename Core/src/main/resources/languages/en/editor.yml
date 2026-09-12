@@ -446,6 +446,15 @@ editor:
       edit_deduct_lives:
         - "&7Enter the amount of lives lost when a player dies in this Dungeon."
         - "&7Example: &a1"
+      edit_deduct_lives_on_leave:
+        - "&7Enter the amount of lives lost when a player leaves or disconnects before clearing."
+        - "&7Example: &a1 &7(&a0 &7disables this penalty)"
+      edit_deduct_lives_on_fail:
+        - "&7Enter the amount of lives lost when the Dungeon ends in failure."
+        - "&7Example: &a1 &7(&a0 &7disables this penalty)"
+      edit_deduct_lives_on_clear:
+        - "&7Enter the amount of lives lost when the Dungeon is cleared."
+        - "&7Example: &a1 &7(&a0 &7disables this penalty)"
       create_filename:
         - "&7Enter a name for the new Dungeon."
         - "&7Allowed: &fLetters (a-z), Numbers (0-9), dash/underscore."
