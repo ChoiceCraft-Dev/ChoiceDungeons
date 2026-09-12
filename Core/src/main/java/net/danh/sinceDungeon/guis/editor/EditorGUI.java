@@ -244,7 +244,12 @@ public class EditorGUI {
                     }
                 }
                 case "INT" -> {
-                    int val = session.getConfig().contains(opt.getLocalPath()) ? session.getConfig().getInt(opt.getLocalPath()) : (Integer) opt.getDefaultValue();
+                    // Consults the global fallback like BOOL/LOCATION/DEATH_ENUM do: without it the GUI
+                    // shows the hardcoded default for any INT setting that has one (empty-dungeon-timeout),
+                    // and editing from that screen writes the wrong value back as a per-dungeon override.
+                    int val = session.getConfig().contains(opt.getLocalPath())
+                            ? session.getConfig().getInt(opt.getLocalPath())
+                            : (opt.getGlobalFallbackPath() != null ? plugin.getConfigFile().getInt(opt.getGlobalFallbackPath(), (Integer) opt.getDefaultValue()) : (Integer) opt.getDefaultValue());
                     valStr = val > 0 ? String.valueOf(val) : (opt.name().equals("MAX_PLAYERS") ? getWord("unlimited", "Unlimited") : String.valueOf(val));
                 }
                 case "DEATH_ENUM" -> {

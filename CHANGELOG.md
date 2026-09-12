@@ -6,9 +6,35 @@ Releases follow [Semantic Versioning](https://semver.org/) and are cut by
 
 ## [Unreleased]
 
+## [1.7.1] — 2026-09-12
+
+### Fixed
+
+- **Dungeon instances were generated instead of copied on servers that keep worlds beside the world
+  container.** `WorldUtils.getTargetFolder()` trusted Paper's `getLevelDirectory()` API, which exists on every
+  modern build, and wrote the copied template into `world/dimensions/minecraft/`. `WorldCreator` then loaded
+  the instance by name from the container, found nothing, and generated fresh terrain — players were
+  teleported to the dungeon's configured coordinates underground, inside blocks and in lava. The dimension
+  layout is now used only when the server actually has one. Regression test:
+  `WorldUtilsTargetFolderTest`.
+- A held player whose team cleared the dungeon was charged `cooldown-on-leave` and `lives-deducted-on-leave`
+  for a run that succeeded; the disconnect path has always skipped penalties on a cleared run.
+- **An expired rejoin hold could delete a player's inventory permanently.** Entering a
+  `save-and-restore-stats` dungeon empties inventory, armour and XP, and the only copy lived in the running
+  game — so a player who did not return in time, or a restart, lost it. The snapshot is now parked on disk
+  (`pending-restores/<uuid>.yml`) and handed back on their next login. This also closes the same leak on the
+  ordinary quit path, where the restore was queued after the player had already left.
+- A run holding a spot for a disconnected player is no longer ended when the last remaining player leaves by
+  a non-quit path (walking out, running out of lives, or leaving the party); it pauses, as a quit would.
+- The Editor GUI showed the hardcoded default for `empty-dungeon-timeout` instead of the configured global
+  value, and writing from that screen saved the wrong number as a per-dungeon override.
+- `weather-cycle` now resolves per world rather than at world spawn, and the docs no longer claim a
+  per-dungeon override applies to it inside Premium's shared schematic world, where several runs share one
+  sky.
+
 ### Added
 
-- Added a JUnit 5 test suite for Core (23 tests), run by `./gradlew build` and therefore by CI.
+- Added a JUnit 5 test suite for Core (27 tests), run by `./gradlew build` and therefore by CI.
   It covers world flag parsing, the `DungeonTemplate.Settings` compatibility constructor, and the
   shipped resources: config defaults matching their code defaults, en/vi/zh language parity, Editor
   setting labels/lore/prompts in every locale, and the bundled dungeon templates.

@@ -139,25 +139,39 @@ public class WorldUtils {
      * Paper 1.20+ with Vanilla world layout places new worlds in world/dimensions/minecraft/
      */
     public static File getTargetFolder(String instanceId) {
+        File container = org.bukkit.Bukkit.getWorldContainer();
+        File dimensions;
+
         try {
             // Paper 1.20.6+ (v26.1+) API to get the correct level directory
             java.lang.reflect.Method getLevelDirectory = org.bukkit.Server.class.getMethod("getLevelDirectory");
             java.nio.file.Path levelDir = (java.nio.file.Path) getLevelDirectory.invoke(org.bukkit.Bukkit.getServer());
-            File dimensions = new File(levelDir.toFile(), "dimensions");
-            // Default namespace for Bukkit worlds is usually 'minecraft' unless specified
-            return new File(new File(dimensions, "minecraft"), instanceId);
+            dimensions = new File(levelDir.toFile(), "dimensions");
         } catch (Exception e) {
             // Fallback to Spigot / Older versions
-            File mainWorldFolder = org.bukkit.Bukkit.getWorlds().get(0).getWorldFolder();
-            File mcDimensions = new File(new File(mainWorldFolder, "dimensions"), "minecraft");
-            
-            // Check heuristic if Vanilla World Layout is somehow active
-            if (new File(mainWorldFolder, "dimensions").exists()) {
-                return new File(mcDimensions, instanceId);
-            }
-            
-            return new File(org.bukkit.Bukkit.getWorldContainer(), instanceId);
+            dimensions = new File(org.bukkit.Bukkit.getWorlds().get(0).getWorldFolder(), "dimensions");
         }
+
+        return resolveInstanceFolder(container, dimensions, instanceId);
+    }
+
+    /**
+     * Decides where a copied instance world belongs, given where this server keeps its worlds.
+     * <p>
+     * The dimension layout is used ONLY when the server actually has one. The Paper API that reports it
+     * exists on every modern build, so trusting the API alone wrote instances into
+     * {@code world/dimensions/minecraft/} on servers that keep worlds beside the container — and since
+     * {@code WorldCreator} then loads the instance by name FROM the container and finds nothing there, the
+     * server generated a fresh world instead. Players were teleported to the dungeon's configured
+     * coordinates in raw generated terrain: underground, inside blocks, sometimes in lava.
+     * <p>
+     * Package-private and file-only so the decision can be tested without a running server.
+     */
+    static File resolveInstanceFolder(File container, File dimensions, String instanceId) {
+        if (dimensions != null && dimensions.isDirectory()) {
+            return new File(new File(dimensions, "minecraft"), instanceId);
+        }
+        return new File(container, instanceId);
     }
 
     /**

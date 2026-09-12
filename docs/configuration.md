@@ -219,6 +219,10 @@ damage blocked for a few seconds so they cannot fall to their death.
 `dungeon.world-flags` switches off vanilla behaviour inside the dungeon worlds the plugin creates (Core world copies
 and the Premium shared schematic world). `true` keeps the normal behaviour; `false` turns it off. Dungeon files can
 override any flag under `settings.world-flags`; in the shared schematic world each run uses its own dungeon's flags.
+
+`weather-cycle` is the one exception, because weather belongs to a whole world rather than to one instance
+inside it. In a copied per-run world the dungeon's own override applies; in a shared schematic world, where
+several runs are in progress at once, only the global value can apply.
 The defaults keep dungeon maps static: everything is off except `fluid-flow`. Set a flag to `true` to bring the vanilla
 behaviour back.
 
