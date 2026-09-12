@@ -153,9 +153,12 @@ jobs:
           fi
 
       # --- STEP 2: ACTUAL BUILD PROCESS ---
+      # The chmod is here, not in a notify step: the wrapper is committed executable, but
+      # the build must not depend on a step that is skipped when Discord is unconfigured.
       - name: Build with Gradle
         run: |
           if [ -f "./gradlew" ]; then
+             chmod +x ./gradlew
              ./gradlew clean build
           else
              gradle clean build
