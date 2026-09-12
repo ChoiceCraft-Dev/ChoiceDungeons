@@ -198,6 +198,12 @@ editor:
     setting_cooldown_on_leave_lore:
       - "&7Current: <val>"
       - "&eLeft Click to toggle"
+    setting_empty_timeout: "&eEmpty Dungeon Timeout"
+    setting_empty_timeout_lore:
+      - "&7Current: &f<val>s"
+      - "&7Seconds a disconnected player's"
+      - "&7spot is held. 0 = end at once."
+      - "&eLeft Click to edit"
     click_edit: "&eLeft Click: Edit"
     create_new: "&a&lCreate New Dungeon"
     world_template: "&eWorld Template"
@@ -403,6 +409,9 @@ editor:
       edit_cooldown:
         - "&7Enter the cooldown time in seconds."
         - "&7Example: &a1800 &7(for 30 minutes)"
+      edit_empty_dungeon_timeout:
+        - "&7Enter how many seconds to keep the dungeon waiting for disconnected players."
+        - "&7Example: &a300 &7(5 minutes), &a0 &7to disable"
       edit_commands:
         - "&7Enter the command (without slash /)."
         - "&7Variables: &a%player%, %dungeon%, %stage%"

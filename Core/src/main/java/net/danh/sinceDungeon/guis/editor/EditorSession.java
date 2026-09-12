@@ -256,6 +256,7 @@ public class EditorSession {
         MAX_PLAYERS("settings.max-players", null, Material.PLAYER_HEAD, "setting_max_players", "INT", -1),
         COOLDOWN("settings.cooldown-seconds", null, Material.CAMPFIRE, "setting_cooldown", "INT", 0),
         COOLDOWN_ON_LEAVE("settings.cooldown-on-leave", "dungeon.gameplay.cooldown-on-leave", Material.IRON_DOOR, "setting_cooldown_on_leave", "BOOL", false),
+        EMPTY_DUNGEON_TIMEOUT("settings.empty-dungeon-timeout", "dungeon.gameplay.empty-dungeon-timeout", Material.RESPAWN_ANCHOR, "setting_empty_timeout", "INT", 300),
         CMD_START("settings.commands.on-start", null, Material.COMMAND_BLOCK, "setting_cmd_start", "LIST", null),
         CMD_FINISH("settings.commands.on-finish", null, Material.REPEATING_COMMAND_BLOCK, "setting_cmd_finish", "LIST", null),
         CMD_FIRST_FINISH("settings.commands.on-first-finish", null, Material.COMMAND_BLOCK_MINECART, "setting_cmd_first_finish", "LIST", null),

@@ -3,6 +3,7 @@ package net.danh.sinceDungeon.managers;
 import net.danh.sinceDungeon.SinceDungeon;
 import net.danh.sinceDungeon.models.DungeonReward;
 import net.danh.sinceDungeon.models.DungeonTemplate;
+import net.danh.sinceDungeon.models.WorldFlag;
 import net.danh.sinceDungeon.utils.FoliaDungeonValidator;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -62,6 +63,8 @@ public class DungeonLoader {
         boolean consumeRequiredItem = config.getBoolean("settings.consume-required-item", true);
         String startLocation = config.contains("settings.start-location") ? config.getString("settings.start-location", "NONE") : plugin.getConfigFile().getString("dungeon.start-location", "NONE");
         List<String> blacklistedItems = config.getStringList("settings.blacklisted-items");
+        int emptyDungeonTimeout = Math.max(0, config.contains("settings.empty-dungeon-timeout") ? config.getInt("settings.empty-dungeon-timeout") : plugin.getConfigFile().getInt("dungeon.gameplay.empty-dungeon-timeout", 300));
+        Map<WorldFlag, Boolean> worldFlags = WorldFlag.fromSection(config.getConfigurationSection("settings.world-flags"));
 
         List<String> onStartCmds = config.getStringList("settings.commands.on-start");
         List<String> onFinishCmds = config.getStringList("settings.commands.on-finish");
@@ -73,7 +76,8 @@ public class DungeonLoader {
                 deductLivesOnLeave, deductLivesOnFail, deductLivesOnClear,
                 randomizeStages, maxPlayers, cooldownSeconds, cooldownOnLeave,
                 onStartCmds, onFinishCmds, onFirstFinishCmds, requiredItem,
-                consumeRequiredItem, startLocation, blacklistedItems
+                consumeRequiredItem, startLocation, blacklistedItems,
+                emptyDungeonTimeout, worldFlags
         );
 
         List<DungeonTemplate.Condition> conditions = new ArrayList<>();
