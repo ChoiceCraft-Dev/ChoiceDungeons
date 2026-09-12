@@ -32,6 +32,11 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        # `enablement` turns Pages on for the repo (build type: GitHub Actions) via the
+        # API instead of failing with "Get Pages site failed" when nobody has enabled it
+        # by hand in Settings, which is how this workflow failed on every run.
+        with:
+          enablement: true
 
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
