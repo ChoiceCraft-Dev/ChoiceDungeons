@@ -50,6 +50,7 @@ admin:
     startup_paper_modern: "在 Paper 1.21+ 上原生运行 | NMS 版本: <nms>"
     startup_paper_legacy: "在 Paper 26.1+ 上原生运行 | 版本: <version>"
     startup_ready: "[Startup] SinceDungeon 数据加载完成。"
+    startup_slow: "[Startup] SinceDungeon 数据在 <seconds> 秒后仍在加载。插件将保持启用，玩家将被阻止加入，直到加载完成。"
     startup_failed: "[Startup] SinceDungeon 启动失败: <error>"
     papi_registered: "成功为 SinceDungeon 注册 PlaceholderAPI 集成。"
     papi_missing: "未找到 PlaceholderAPI。自定义变量将被禁用。"

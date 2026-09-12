@@ -29,9 +29,21 @@ configuration are documented under `docs/`.
 
 ## Testing
 
-- There are no automated tests, and CI only runs `./gradlew clean build`. Anything
-  touching gameplay has to be checked by hand on a Paper server, and on Folia too
-  when it affects Premium's `SCHEMATIC` mode.
+- `Core/src/test/java` holds a JUnit 5 suite that `./gradlew build` runs, so CI covers it.
+  It deliberately needs no running server: it exercises pure logic (world flag parsing,
+  the `Settings` compatibility constructor) and asserts against the **shipped resources**
+  on the test classpath — that every `WorldFlag` has a default in `settings/gameplay.yml`
+  matching its code default, that en/vi/zh language files carry the same keys, that every
+  Editor `SettingOption` has a label, lore and input prompt in all three locales, and that
+  the bundled dungeon templates parse.
+- What that suite cannot tell you: whether the plugin actually works. Bukkit APIs, the
+  schedulers, world instancing and every gameplay path are untested. Anything touching
+  gameplay still has to be checked by hand on a Paper server, and on Folia too when it
+  affects Premium's `SCHEMATIC` mode.
+- The resource assertions exist because the failure modes they catch are all silent:
+  `ConfigUtils` only adds default keys that exist in the shipped file, `LanguageManager`
+  falls back to inline English, and the Editor GUI falls back to a generic prompt. Each
+  gap shows up as slightly wrong behaviour on someone's server, never as an error.
 - Scheduling must go through `SchedulerCompat`: world work on the global scheduler,
   player work on the entity scheduler, or it breaks on Folia.
 

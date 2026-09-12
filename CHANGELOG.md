@@ -6,6 +6,21 @@ Releases follow [Semantic Versioning](https://semver.org/) and are cut by
 
 ## [Unreleased]
 
+### Added
+
+- Added a JUnit 5 test suite for Core (23 tests), run by `./gradlew build` and therefore by CI.
+  It covers world flag parsing, the `DungeonTemplate.Settings` compatibility constructor, and the
+  shipped resources: config defaults matching their code defaults, en/vi/zh language parity, Editor
+  setting labels/lore/prompts in every locale, and the bundled dungeon templates.
+
+### Fixed
+
+- Added the missing Vietnamese and Chinese translations for `admin.log.startup_slow`; those servers
+  logged the English text.
+- Added the missing Editor input prompts for `lives-deducted-on-leave`, `-on-fail` and `-on-clear` in
+  all three languages. They fell back to a generic "enter a number" prompt while every comparable
+  setting had tailored guidance.
+
 ## [1.7.0] — 2026-09-12
 
 - Added proactive Folia validation for Core template-world/world-copy dungeons during template load, join, and editor
