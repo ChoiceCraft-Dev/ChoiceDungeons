@@ -56,8 +56,13 @@ jobs:
           cache: 'gradle' # Automatically handles Gradle caching (equivalent to GitLab cache)
 
       # --- STEP 1: NOTIFY BUILD START ---
+      # Skipped when the Discord webhook secrets are not configured (they are not in this
+      # fork). Without the guard `curl` is handed an empty URL, exits 3, and the step's
+      # `bash -e` fails the whole job — before the build has even run, so a red run said
+      # nothing about the code.
       - name: Notify Start to Discord
         id: notify_start
+        if: env.WEBHOOK_URL_FREE != '' || env.WEBHOOK_URL_PREMIUM != ''
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
           AUTHOR=$(git log -1 --pretty=%an)
@@ -159,7 +164,7 @@ jobs:
       # --- STEP 3A: NOTIFY BUILD SUCCESS ---
       # 'if: success()' guarantees this step only runs if the 'Build with Gradle' step passes
       - name: Notify Success & Upload JARs to Discord
-        if: success()
+        if: success() && (env.WEBHOOK_URL_FREE != '' || env.WEBHOOK_URL_PREMIUM != '')
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
           AUTHOR=$(git log -1 --pretty=%an)
@@ -243,7 +248,7 @@ jobs:
       # --- STEP 3B: NOTIFY BUILD FAILURE ---
       # 'if: failure()' triggers this step ONLY if any previous step fails (like a compilation error)
       - name: Notify Failure to Discord
-        if: failure()
+        if: failure() && (env.WEBHOOK_URL_FREE != '' || env.WEBHOOK_URL_PREMIUM != '')
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
           HASH=$(git log -1 --pretty=%h)
