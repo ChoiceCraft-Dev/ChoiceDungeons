@@ -20,6 +20,15 @@ Releases follow [Semantic Versioning](https://semver.org/) and are cut by
   (`skyworld`) does have one, so every run still generated a world *and* leaked a full copy of the template
   (675 MB of orphans had accumulated). The destination is now unconditionally the world container, matching
   the behaviour that worked before 1.7.0. Regression test: `WorldUtilsTargetFolderTest`.
+- **Upgrading from 1.7.0 or 1.7.1 leaves orphaned instance copies behind, and this release does not delete
+  them.** `cleanUpStuckWorlds()` only scans the world container, so copies written by those versions under
+  `<level>/dimensions/minecraft/SinceDungeon_*` are invisible to it. They are inert — nothing loads them —
+  and safe to delete by hand once you are on 1.7.2. Expect roughly one template-sized copy (a few MB) per
+  dungeon run made while 1.7.0/1.7.1 was installed. Delete only entries whose name starts with
+  `SinceDungeon_`: that folder also holds real dimensions.
+- `getTemplateFolder()` no longer hardcodes `world/dimensions` when searching for a template stored under
+  the dimension layout. The level directory is whatever `level-name` says, so on a server named anything
+  other than `world` that search silently never ran.
 
 ## [1.7.1] — 2026-09-12
 

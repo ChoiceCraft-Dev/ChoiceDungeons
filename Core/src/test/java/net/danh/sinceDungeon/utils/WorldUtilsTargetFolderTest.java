@@ -43,11 +43,13 @@ class WorldUtilsTargetFolderTest {
 
         File target = WorldUtils.resolveInstanceFolder(container, "SinceDungeon_abc");
 
+        // Only the returned path is asserted. This function is pure path arithmetic and never touches the
+        // filesystem, so checking that the dimensions folder stayed empty would pass no matter what it
+        // returned — that would be false confidence, not coverage. Whether bytes actually land there is a
+        // property of copyWorld, which needs a running server to exercise.
         assertEquals(new File(container, "SinceDungeon_abc"), target,
                 "the production server has a real skyworld/dimensions folder; routing the copy there is what"
                         + " left Bukkit generating a fresh world under the container");
-        assertEquals(0, dimensions.list().length,
-                "nothing may be written under the dimensions layout — those copies are orphaned and leak disk");
     }
 
     @Test

@@ -112,6 +112,20 @@ public class WorldUtils {
     /**
      * Resolves the world template folder. Checks the root container first, then searches within world/dimensions.
      */
+    /**
+     * The server's {@code <level>/dimensions} folder, wherever the level actually lives. Used only when
+     * searching for a template; instance worlds must never be written under it.
+     */
+    private static File levelDimensionsFolder() {
+        try {
+            java.lang.reflect.Method getLevelDirectory = org.bukkit.Server.class.getMethod("getLevelDirectory");
+            java.nio.file.Path levelDir = (java.nio.file.Path) getLevelDirectory.invoke(org.bukkit.Bukkit.getServer());
+            return new File(levelDir.toFile(), "dimensions");
+        } catch (Exception e) {
+            return new File(org.bukkit.Bukkit.getWorlds().get(0).getWorldFolder(), "dimensions");
+        }
+    }
+
     public static File getTemplateFolder(String templateName) {
         File container = org.bukkit.Bukkit.getWorldContainer();
         File defaultSource = new File(container, templateName);
@@ -119,7 +133,9 @@ public class WorldUtils {
             return defaultSource;
         }
 
-        File dimensionsFolder = new File(container, "world/dimensions");
+        // The level directory is whatever level-name says (skyworld, world, …), so this cannot be
+        // hardcoded to "world" — doing so silently skipped the search on every server named otherwise.
+        File dimensionsFolder = levelDimensionsFolder();
         if (dimensionsFolder.exists() && dimensionsFolder.isDirectory()) {
             File[] namespaces = dimensionsFolder.listFiles(File::isDirectory);
             if (namespaces != null) {
@@ -135,8 +151,12 @@ public class WorldUtils {
     }
 
     /**
-     * Resolves the correct target folder for a new world.
-     * Paper 1.20+ with Vanilla world layout places new worlds in world/dimensions/minecraft/
+     * Resolves where a new instance world must be written: the world container, always.
+     * <p>
+     * Do not route this through the vanilla {@code <level>/dimensions/<namespace>/} layout. That layout is
+     * for the server's own built-in dimensions; {@code new WorldCreator(name)} resolves a plugin world
+     * against {@link org.bukkit.Bukkit#getWorldContainer()} and nowhere else. Sending the copy elsewhere
+     * has broken dungeons twice — see {@link #resolveInstanceFolder(File, String)} for what it costs.
      */
     public static File getTargetFolder(String instanceId) {
         return resolveInstanceFolder(org.bukkit.Bukkit.getWorldContainer(), instanceId);
