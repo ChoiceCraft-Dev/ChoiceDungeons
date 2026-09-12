@@ -7,6 +7,8 @@ import net.danh.sinceDungeon.hooks.MythicMobsHook;
 import net.danh.sinceDungeon.managers.LivesManager;
 import net.danh.sinceDungeon.managers.WorldManager;
 import net.danh.sinceDungeon.models.DungeonGame;
+import net.danh.sinceDungeon.models.DungeonTemplate;
+import net.danh.sinceDungeon.models.WorldFlag;
 import net.danh.sinceDungeon.systems.party.DefaultPartyProvider;
 import net.danh.sinceDungeon.utils.ColorUtils;
 import net.danh.sinceDungeon.utils.SchedulerCompat;
@@ -14,6 +16,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.block.Block;
 import org.bukkit.entity.*;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
@@ -26,7 +29,15 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.*;
+import org.bukkit.event.weather.ThunderChangeEvent;
+import org.bukkit.event.weather.WeatherChangeEvent;
+import org.bukkit.event.world.StructureGrowEvent;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.util.Vector;
 
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,12 +51,21 @@ import java.util.logging.Level;
  * and safely intercepts cross-world teleportations to prevent transfer lockups.
  */
 public class DungeonListener implements Listener {
+    private static final long RESCUE_IMMUNITY_MILLIS = 5000L;
+    private static final Set<CreatureSpawnEvent.SpawnReason> NATURAL_SPAWN_REASONS = EnumSet.of(
+            CreatureSpawnEvent.SpawnReason.NATURAL, CreatureSpawnEvent.SpawnReason.PATROL,
+            CreatureSpawnEvent.SpawnReason.TRAP, CreatureSpawnEvent.SpawnReason.VILLAGE_DEFENSE);
+
     private final SinceDungeon plugin;
     private final Map<UUID, PendingDeathAction> pendingDeathActions = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> rescueImmunity = new ConcurrentHashMap<>();
+    private final NamespacedKey logoutKey;
     private String worldPrefix;
+    private volatile Map<WorldFlag, Boolean> globalWorldFlags = Map.of();
 
     public DungeonListener(SinceDungeon plugin) {
         this.plugin = plugin;
+        this.logoutKey = new NamespacedKey(plugin, "dungeon_logout");
         updateConfig();
     }
 
@@ -56,6 +76,12 @@ public class DungeonListener implements Listener {
     public void updateConfig() {
         String prefix = plugin.getConfigFile().getString("dungeon.world-prefix", "SinceDungeon_");
         this.worldPrefix = (prefix == null || prefix.trim().isEmpty()) ? "SinceDungeon_" : prefix;
+
+        Map<WorldFlag, Boolean> flags = new EnumMap<>(WorldFlag.class);
+        for (WorldFlag flag : WorldFlag.values()) {
+            flags.put(flag, plugin.getConfigFile().getBoolean("dungeon.world-flags." + flag.getKey(), flag.getDefaultValue()));
+        }
+        this.globalWorldFlags = flags;
     }
 
     private boolean isDungeonWorld(World world) {
@@ -306,29 +332,109 @@ public class DungeonListener implements Listener {
             plugin.getDungeonManager().checkPendingCrossServerJoin(p);
         }
 
+        PersistentDataContainer pdc = p.getPersistentDataContainer();
+        String logoutReturn = pdc.get(logoutKey, PersistentDataType.STRING);
+        if (logoutReturn != null) pdc.remove(logoutKey);
+
+        // Spot held by the empty-dungeon timeout: resume the run instead of rescuing
+        DungeonGame heldGame = plugin.getDungeonManager().getGame(p.getUniqueId());
+        if (heldGame != null && heldGame.isAwaitingRejoin(p.getUniqueId())) {
+            heldGame.handlePlayerRejoin(p);
+            return;
+        }
+
         // MVI FIX: Ghost Rescue Bypass conditionally verifies Multi-Verse implementation before overriding configurations.
-        if (isDungeonWorld(p.getLocation().getWorld())) {
-            World ghostWorld = p.getLocation().getWorld();
-            String logMsg = plugin.getLanguageManager().getString("admin.log.rescuing_ghost", "Rescuing ghosted player <player> from deleted instance.");
-            plugin.getLogger().warning(logMsg.replace("<player>", p.getName()));
+        // The logout tag also catches players whose instance is gone entirely (deleted world or cleared schematic
+        // area), who would otherwise spawn in a void world or at the old coordinates in another world.
+        World loginWorld = p.getLocation().getWorld();
+        boolean inDungeonWorld = isDungeonWorld(loginWorld);
+        if (logoutReturn != null || inDungeonWorld) {
+            rescueFromDungeon(p, parseLogoutLocation(logoutReturn), inDungeonWorld ? loginWorld : null);
+        }
+    }
 
+    /**
+     * Moves a player who logged back in to a dungeon that no longer holds them to a safe location.
+     * Fall and void damage are blocked briefly because they may already be falling before the teleport lands.
+     */
+    private void rescueFromDungeon(Player p, Location target, World ghostWorld) {
+        String logMsg = plugin.getLanguageManager().getString("admin.log.rescuing_ghost", "Rescuing ghosted player <player> from deleted instance.");
+        plugin.getLogger().warning(logMsg.replace("<player>", p.getName()));
 
-            p.teleportAsync(Bukkit.getWorlds().get(0).getSpawnLocation()).thenAccept(success -> {
-                if (success) {
-                    String msg = plugin.getLanguageManager().getString("admin.ghost_rescued", "&eThe system rescued you from a deleted or corrupted Dungeon instance.");
-                    p.sendMessage(ColorUtils.parseWithPrefix(msg));
+        rescueImmunity.put(p.getUniqueId(), System.currentTimeMillis() + RESCUE_IMMUNITY_MILLIS);
+        p.setFallDistance(0);
+        p.setVelocity(new Vector(0, 0, 0));
 
-                    SchedulerCompat.runGlobalLater(plugin, () -> {
+        Location fallback = Bukkit.getWorlds().get(0).getSpawnLocation();
+        Location destination = (target != null && target.getWorld() != null && !isDungeonWorld(target.getWorld())) ? target : fallback;
 
-
-                        if (ghostWorld.getPlayers().isEmpty()) {
-                            String delLog = plugin.getLanguageManager().getString("admin.log.deleting_ghost_world", "Ghost World <world> is now empty. Deleting permanently...");
-                            plugin.getLogger().info(delLog.replace("<world>", ghostWorld.getName()));
-                            WorldManager.forceUnloadAndDelete(plugin, ghostWorld);
-                        }
-                    }, 40L);
+        SchedulerCompat.runAtEntity(plugin, p, () -> {
+            if (!p.isOnline()) return;
+            p.teleportAsync(destination).thenAccept(success -> SchedulerCompat.runAtEntity(plugin, p, () -> {
+                if (!p.isOnline()) return;
+                if (!success && destination != fallback) {
+                    p.teleportAsync(fallback);
                 }
-            });
+                p.setFallDistance(0);
+                String msg = plugin.getLanguageManager().getString("admin.ghost_rescued", "&eThe system rescued you from a deleted or corrupted Dungeon instance.");
+                p.sendMessage(ColorUtils.parseWithPrefix(msg));
+            }));
+        });
+
+        // Only per-run worlds are deleted, never a shared provider world or one still hosting a (held) run
+        if (ghostWorld != null && ghostWorld.getName().startsWith(worldPrefix)) {
+            SchedulerCompat.runGlobalLater(plugin, () -> {
+                if (ghostWorld.getPlayers().isEmpty() && !plugin.getDungeonManager().hasGameInWorld(ghostWorld.getName())) {
+                    String delLog = plugin.getLanguageManager().getString("admin.log.deleting_ghost_world", "Ghost World <world> is now empty. Deleting permanently...");
+                    plugin.getLogger().info(delLog.replace("<world>", ghostWorld.getName()));
+                    WorldManager.forceUnloadAndDelete(plugin, ghostWorld);
+                }
+            }, 40L);
+        }
+    }
+
+    /**
+     * Tags a player who logs out inside a dungeon with their pre-dungeon location. The tag is saved with the
+     * player's data, so it survives restarts and works whatever world naming the instance provider uses.
+     */
+    private void markDungeonLogout(Player p) {
+        if (!isDungeonLocation(p.getLocation())) return;
+        DungeonGame game = plugin.getDungeonManager().getGame(p.getUniqueId());
+        Location back = game != null ? game.getSavedLocation(p.getUniqueId()) : null;
+        String value = "";
+        if (back != null && back.getWorld() != null) {
+            value = back.getWorld().getUID() + ";" + back.getX() + ";" + back.getY() + ";" + back.getZ() + ";" + back.getYaw() + ";" + back.getPitch();
+        }
+        p.getPersistentDataContainer().set(logoutKey, PersistentDataType.STRING, value);
+    }
+
+    private Location parseLogoutLocation(String value) {
+        if (value == null || value.isEmpty()) return null;
+        String[] parts = value.split(";");
+        if (parts.length < 6) return null;
+        try {
+            World world = Bukkit.getWorld(UUID.fromString(parts[0]));
+            if (world == null) return null;
+            return new Location(world, Double.parseDouble(parts[1]), Double.parseDouble(parts[2]), Double.parseDouble(parts[3]),
+                    Float.parseFloat(parts[4]), Float.parseFloat(parts[5]));
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onRescueDamage(EntityDamageEvent e) {
+        if (rescueImmunity.isEmpty() || !(e.getEntity() instanceof Player p)) return;
+        Long until = rescueImmunity.get(p.getUniqueId());
+        if (until == null) return;
+        if (System.currentTimeMillis() > until) {
+            rescueImmunity.remove(p.getUniqueId());
+            return;
+        }
+        switch (e.getCause()) {
+            case FALL, VOID, SUFFOCATION -> e.setCancelled(true);
+            default -> {
+            }
         }
     }
 
@@ -439,6 +545,7 @@ public class DungeonListener implements Listener {
         Player p = e.getPlayer();
         boolean debug = plugin.getConfigFile().getBoolean("settings.debug", false);
         pendingDeathActions.remove(p.getUniqueId());
+        rescueImmunity.remove(p.getUniqueId());
 
         if (debug) {
             String msg = plugin.getLanguageManager().getString("admin.debug.quit_triggered", "[Debug] PlayerQuitEvent triggered for <player>");
@@ -460,6 +567,7 @@ public class DungeonListener implements Listener {
         }
 
         try {
+            markDungeonLogout(p);
             DungeonGame game = plugin.getDungeonManager().getGame(p.getUniqueId());
             if (game != null) {
                 game.handlePlayerDisconnect(p, true);
@@ -759,5 +867,89 @@ public class DungeonListener implements Listener {
         OUT_OF_LIVES_SPECTATE,
         OUT_OF_LIVES_FAIL,
         OUT_OF_LIVES_KICK
+    }
+
+    /* --------------------------------------------------------
+       World flags: vanilla behaviour switches for dungeon worlds
+       -------------------------------------------------------- */
+
+    // These events fire constantly server-wide, so non-dungeon worlds must exit on a prefix check plus a map lookup
+    private boolean mayHostDungeon(World world) {
+        return world != null && (world.getName().startsWith(worldPrefix) || plugin.getDungeonManager().getGameByWorld(world.getName()) != null);
+    }
+
+    private boolean isFlagDisabled(WorldFlag flag, Block block) {
+        return mayHostDungeon(block.getWorld()) && resolveFlagDisabled(flag, block.getLocation());
+    }
+
+    private boolean isFlagDisabled(WorldFlag flag, Location location) {
+        return mayHostDungeon(location.getWorld()) && resolveFlagDisabled(flag, location);
+    }
+
+    // The run owning the location decides, so dungeons sharing one schematic world keep their own flags
+    private boolean resolveFlagDisabled(WorldFlag flag, Location location) {
+        DungeonGame game = plugin.getDungeonManager().getGameByLocation(location);
+        DungeonTemplate template = game != null ? game.getTemplate() : null;
+        Boolean override = template != null ? template.settings().worldFlags().get(flag) : null;
+        return !(override != null ? override : globalWorldFlags.getOrDefault(flag, flag.getDefaultValue()));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onLeavesDecay(LeavesDecayEvent e) {
+        if (isFlagDisabled(WorldFlag.LEAF_DECAY, e.getBlock())) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockGrow(BlockGrowEvent e) {
+        if (isFlagDisabled(WorldFlag.CROP_GROWTH, e.getBlock())) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onStructureGrow(StructureGrowEvent e) {
+        if (isFlagDisabled(WorldFlag.TREE_GROWTH, e.getLocation())) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockSpread(BlockSpreadEvent e) {
+        if (isFlagDisabled(WorldFlag.BLOCK_SPREAD, e.getBlock())) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockFade(BlockFadeEvent e) {
+        if (isFlagDisabled(WorldFlag.BLOCK_FADE, e.getBlock())) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockForm(BlockFormEvent e) {
+        if (isFlagDisabled(WorldFlag.BLOCK_FORM, e.getBlock())) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onFluidFlow(BlockFromToEvent e) {
+        if (isFlagDisabled(WorldFlag.FLUID_FLOW, e.getBlock())) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onNaturalSpawn(CreatureSpawnEvent e) {
+        if (NATURAL_SPAWN_REASONS.contains(e.getSpawnReason()) && isFlagDisabled(WorldFlag.NATURAL_MOB_SPAWNING, e.getLocation())) {
+            e.setCancelled(true);
+        }
+    }
+
+    // Only natural starts are blocked, so the plugin's own clear-weather setup and admin commands still work
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onWeatherChange(WeatherChangeEvent e) {
+        if (e.toWeatherState() && e.getCause() == WeatherChangeEvent.Cause.NATURAL
+                && isFlagDisabled(WorldFlag.WEATHER_CYCLE, e.getWorld().getSpawnLocation())) {
+            e.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onThunderChange(ThunderChangeEvent e) {
+        if (e.toThunderState() && e.getCause() == ThunderChangeEvent.Cause.NATURAL
+                && isFlagDisabled(WorldFlag.WEATHER_CYCLE, e.getWorld().getSpawnLocation())) {
+            e.setCancelled(true);
+        }
     }
 }

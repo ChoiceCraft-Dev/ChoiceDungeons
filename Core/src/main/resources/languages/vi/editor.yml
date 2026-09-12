@@ -198,6 +198,12 @@ editor:
     setting_cooldown_on_leave_lore:
       - "&7Hiện tại: <val>"
       - "&eChuột Trái: Bật/Tắt"
+    setting_empty_timeout: "&eThời Gian Giữ Dungeon Trống"
+    setting_empty_timeout_lore:
+      - "&7Hiện tại: &f<val>s"
+      - "&7Số giây giữ chỗ cho người chơi"
+      - "&7mất kết nối. 0 = kết thúc ngay."
+      - "&eChuột trái: Chỉnh sửa"
     click_edit: "&eChuột Trái: Chỉnh sửa"
     create_new: "&a&lTạo Dungeon Mới"
     world_template: "&eBản đồ Mẫu (World)"
@@ -405,6 +411,9 @@ editor:
       edit_cooldown:
         - "&7Nhập thời gian chờ cho Hầm ngục tính bằng giây."
         - "&7Ví dụ: &a1800 &7(Dành cho 30 phút)"
+      edit_empty_dungeon_timeout:
+        - "&7Nhập số giây Dungeon chờ người chơi mất kết nối quay lại."
+        - "&7Ví dụ: &a300 &7(5 phút), &a0 &7để tắt"
       edit_commands:
         - "&7Nhập lệnh Console (không cần /)."
         - "&7Biến hỗ trợ: &a%player%, %dungeon%, %stage%"

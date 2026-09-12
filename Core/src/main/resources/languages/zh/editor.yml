@@ -198,6 +198,12 @@ editor:
     setting_cooldown_on_leave_lore:
       - "&7当前: <val>"
       - "&e左键点击切换"
+    setting_empty_timeout: "&e空副本保留时间"
+    setting_empty_timeout_lore:
+      - "&7当前: &f<val>秒"
+      - "&7断线玩家的位置保留秒数。"
+      - "&70 表示立即结束。"
+      - "&e左键点击编辑"
     click_edit: "&e左键点击: 编辑"
     create_new: "&a&l创建新副本"
     world_template: "&e世界模板名称"
@@ -405,6 +411,9 @@ editor:
       edit_cooldown:
         - "&7输入冷却时间 (秒)。"
         - "&7示例: &a1800 &7(表示30分钟)"
+      edit_empty_dungeon_timeout:
+        - "&7输入副本等待断线玩家重连的秒数。"
+        - "&7示例: &a300 &7(5分钟), &a0 &7表示关闭"
       edit_commands:
         - "&7输入命令 (不要带斜杠 /)。"
         - "&7变量支持: &a%player%, %dungeon%, %stage%"

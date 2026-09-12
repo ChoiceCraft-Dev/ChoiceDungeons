@@ -1,4 +1,4 @@
-version = '1.6.4'
+// `version` comes from gradle.properties; a release build overrides it with -Pversion=X.Y.Z.
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")

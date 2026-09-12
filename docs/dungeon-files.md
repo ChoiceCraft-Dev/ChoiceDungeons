@@ -67,9 +67,21 @@ settings:
   randomize-stages: false
   cooldown-seconds: 1800
   cooldown-on-leave: true
+  empty-dungeon-timeout: 300
   required-item: "NONE"
   consume-required-item: true
+  world-flags:
+    leaf-decay: false
+    crop-growth: false
 ```
+
+Disconnects and world flags:
+
+- `empty-dungeon-timeout` overrides `dungeon.gameplay.empty-dungeon-timeout`: seconds a disconnected player's spot is
+  held and an empty run stays alive (paused). `0` ends the run as soon as it is empty. Leave penalties are only charged
+  if the player does not return in time.
+- `world-flags` overrides individual flags from `dungeon.world-flags` for this dungeon only. Flags you leave out use the
+  global value. See [Configuration](configuration.md#world-flags) for the full list.
 
 Death actions:
 

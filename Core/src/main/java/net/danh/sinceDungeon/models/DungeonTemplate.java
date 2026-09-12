@@ -41,6 +41,31 @@ public record DungeonTemplate(String id, String templateWorld, boolean isPublic,
                            List<String> onStartCmds, List<String> onFinishCmds,
                            List<String> onFirstFinishCmds, String requiredItem,
                            boolean consumeRequiredItem, String startLocation,
-                           List<String> blacklistedItems) {
+                           List<String> blacklistedItems, int emptyDungeonTimeout,
+                           Map<WorldFlag, Boolean> worldFlags) {
+
+        /**
+         * Legacy constructor kept for API compatibility; rejoin hold disabled and no world flag overrides.
+         */
+        public Settings(boolean keepInventoryOnDeath, boolean preventItemDropping,
+                        boolean blockEnderPearls, int kickDelayAfterFinish,
+                        boolean forceDaylightAndClearWeather, boolean saveAndRestoreStats,
+                        String deathAction, boolean clearMobDrops,
+                        int requiredLivesToJoin, int livesDeductedPerDeath,
+                        int livesDeductedOnLeave, int livesDeductedOnFail,
+                        int livesDeductedOnClear,
+                        boolean randomizeStages, int maxPlayers,
+                        int cooldownSeconds, boolean cooldownOnLeave,
+                        List<String> onStartCmds, List<String> onFinishCmds,
+                        List<String> onFirstFinishCmds, String requiredItem,
+                        boolean consumeRequiredItem, String startLocation,
+                        List<String> blacklistedItems) {
+            this(keepInventoryOnDeath, preventItemDropping, blockEnderPearls, kickDelayAfterFinish,
+                    forceDaylightAndClearWeather, saveAndRestoreStats, deathAction, clearMobDrops,
+                    requiredLivesToJoin, livesDeductedPerDeath, livesDeductedOnLeave, livesDeductedOnFail,
+                    livesDeductedOnClear, randomizeStages, maxPlayers, cooldownSeconds, cooldownOnLeave,
+                    onStartCmds, onFinishCmds, onFirstFinishCmds, requiredItem, consumeRequiredItem,
+                    startLocation, blacklistedItems, 0, Map.of());
+        }
     }
 }

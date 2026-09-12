@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+Releases follow [Semantic Versioning](https://semver.org/) and are cut by
+`.github/workflows/auto-release.yml` as `choicedungeons/v<version>` whenever `version=` in
+`gradle.properties` changes on `master`.
+
+## [Unreleased]
+
+## [1.7.0] — 2026-09-12
 
 - Added proactive Folia validation for Core template-world/world-copy dungeons during template load, join, and editor
   save, with guidance that Premium `SCHEMATIC` shared-world mode works on Paper and Folia.
@@ -10,6 +16,10 @@
   config keys.
 
 ### Fixed
+
+- Players who log back in after their dungeon has ended are now always rescued to their pre-dungeon location (or the
+  main world spawn) instead of spawning in a void world, including Premium's shared schematic world and after a
+  restart, with fall/void/suffocation damage blocked briefly. Ghost cleanup no longer deletes a shared provider world.
 
 - Fixed a critical bug in Paper 1.20+ where joining a dungeon would spawn players in a randomly generated world instead of the dungeon template (caused by incorrect instance folder targeting).
 - Enforced private dungeon visibility: regular members cannot join `public: false` dungeons, while admins can
@@ -24,6 +34,16 @@
   asynchronously, and rendering holograms on the owning location scheduler.
 
 ### Added
+
+- Added `dungeon.gameplay.empty-dungeon-timeout` (and per-dungeon `settings.empty-dungeon-timeout`, also in the Editor
+  GUI). A player who disconnects mid-run keeps their spot for that many seconds; an empty run pauses and stays alive so
+  a solo player can log back in and continue. Leave penalties are deferred until the timeout expires. Default `300`
+  seconds; set `0` for the previous behaviour.
+- Added `dungeon.world-flags` (and per-dungeon `settings.world-flags`) to switch off leaf decay, crop and tree growth,
+  block spread/fade/form, fluid flow, natural mob spawning and natural weather in dungeon worlds. By default every flag
+  except `fluid-flow` is off, so existing servers pick up static dungeon worlds on upgrade; set a flag to `true` to keep
+  vanilla behaviour.
+- Added `DungeonTemplate.Settings` components `emptyDungeonTimeout` and `worldFlags`; the previous constructor is kept.
 
 - Added `settings.regenerate-default-templates` option in `config.yml` (default `false`). Setting this to false stops the plugin from automatically re-creating default template files (e.g. `example_dungeon.yml`) when server owners delete them.
 - Added API overload `joinDungeon(Player, String, boolean)` for controlled private dungeon joins by integrations.

@@ -39,6 +39,8 @@ public class DungeonGame {
     private final SinceDungeon plugin;
     private final Map<UUID, PlayerState> savedStates = new ConcurrentHashMap<>();
     private final Map<UUID, List<ItemStack>> confiscatedItems = new ConcurrentHashMap<>();
+    // Disconnected players whose spot is held until the stored deadline (epoch millis)
+    private final Map<UUID, Long> awaitingRejoin = new ConcurrentHashMap<>();
 
     private final String worldName;
     private final Map<UUID, Integer> playerKills = new ConcurrentHashMap<>();
@@ -68,6 +70,7 @@ public class DungeonGame {
     private SchedulerCompat.TaskHandle kickTask; // Note: Task explicitly tracked to avoid ghost countdowns
     private long startTime;
     private int serverTicksActive = 0;
+    private volatile long pausedSince = -1;
 
     private String lastActionBarText = "";
     private Component lastParsedBar = null;
@@ -372,6 +375,7 @@ public class DungeonGame {
                 if (tickTask != null) tickTask.cancel();
                 return;
             }
+            if (isPausedForRejoin()) return;
             serverTicksActive += 4;
             runTick();
         }, 4L, 4L);
@@ -633,6 +637,9 @@ public class DungeonGame {
     }
 
     public void checkWipeout() {
+        // Nobody online but a held player may still return: the empty-dungeon timeout decides instead
+        if (isPausedForRejoin()) return;
+
         boolean allDeadOrSpectating = true;
 
         for (Player p : participants) {
@@ -703,11 +710,15 @@ public class DungeonGame {
     }
 
     private void applyCooldown(Player p) {
+        applyCooldown(p.getUniqueId());
+    }
+
+    private void applyCooldown(UUID uuid) {
         if (template == null) return;
         int cooldownSeconds = template.settings().cooldownSeconds();
         if (cooldownSeconds > 0) {
             long expireEpoch = System.currentTimeMillis() + (cooldownSeconds * 1000L);
-            plugin.getCooldownManager().setCooldown(p.getUniqueId(), template.id(), expireEpoch);
+            plugin.getCooldownManager().setCooldown(uuid, template.id(), expireEpoch);
         }
     }
 
@@ -866,6 +877,8 @@ public class DungeonGame {
     }
 
     public void handlePlayerDisconnect(Player p, boolean isQuitting) {
+        if (isQuitting && holdForRejoin(p)) return;
+
         boolean wasInDungeon = (dungeonWorld != null && p.getWorld().equals(dungeonWorld));
 
         plugin.getRewardManager().getRewardSystem().forceClaimPending(p);
@@ -912,6 +925,125 @@ public class DungeonGame {
         }
     }
 
+    /**
+     * Keeps a quitting player's spot for the empty-dungeon timeout instead of removing them.
+     * The live Player object is dropped (a reconnect creates a new one); the UUID stays mapped in
+     * DungeonManager so the join listener can find this game, and the saved pre-dungeon state is kept.
+     */
+    private boolean holdForRejoin(Player p) {
+        if (template == null || !isRunning || isCleared || isStopping) return false;
+        int timeout = template.settings().emptyDungeonTimeout();
+        if (timeout <= 0) return false;
+
+        UUID uuid = p.getUniqueId();
+        long deadline = System.currentTimeMillis() + timeout * 1000L;
+        participants.remove(p);
+        awaitingRejoin.put(uuid, deadline);
+
+        if (participants.isEmpty()) {
+            if (pausedSince < 0) pausedSince = System.currentTimeMillis();
+        } else {
+            broadcastMessage("game.player_disconnect_hold", "<player>", p.getName(), "<time>", String.valueOf(timeout));
+        }
+
+        SchedulerCompat.runGlobalLater(plugin, () -> expireRejoin(uuid, deadline), timeout * 20L);
+        return true;
+    }
+
+    private void expireRejoin(UUID uuid, long deadline) {
+        // A rejoin removes the entry; a later disconnect replaces it with a new deadline
+        if (!awaitingRejoin.remove(uuid, deadline)) return;
+        releaseHeldPlayer(uuid);
+
+        if (participants.isEmpty() && awaitingRejoin.isEmpty() && !isCleared) {
+            stop(false, DungeonEndEvent.EndReason.FAILED);
+        }
+    }
+
+    /**
+     * Applies the leave penalties that were deferred while the player's spot was held.
+     */
+    private void releaseHeldPlayer(UUID uuid) {
+        plugin.getDungeonManager().removeGame(uuid);
+        if (template == null) return;
+        if (template.settings().cooldownOnLeave()) {
+            applyCooldown(uuid);
+        }
+        deductLeaveLives(uuid, template.settings().livesDeductedOnLeave());
+    }
+
+    private void releaseAllHeldPlayers(boolean applyLeavePenalties) {
+        for (UUID uuid : new ArrayList<>(awaitingRejoin.keySet())) {
+            if (awaitingRejoin.remove(uuid) == null) continue;
+            if (applyLeavePenalties) {
+                releaseHeldPlayer(uuid);
+            } else {
+                plugin.getDungeonManager().removeGame(uuid);
+            }
+        }
+    }
+
+    private void deductLeaveLives(UUID uuid, int amount) {
+        if (amount <= 0) return;
+        Player online = Bukkit.getPlayer(uuid);
+        if (online != null) {
+            deductConfiguredLives(online, amount, "lives.reason_leave");
+            return;
+        }
+        // Lives are unloaded on quit, so load them just long enough to charge and save
+        LivesManager lives = plugin.getLivesManager();
+        lives.loadPlayerAsync(uuid).thenRun(() -> {
+            lives.removeLives(uuid, amount);
+            if (Bukkit.getPlayer(uuid) == null) lives.unloadPlayer(uuid);
+        });
+    }
+
+    public boolean isAwaitingRejoin(UUID uuid) {
+        return awaitingRejoin.containsKey(uuid);
+    }
+
+    /**
+     * Re-links a reconnecting player to this run. Their inventory and saved pre-dungeon state never
+     * left, so only the live Player object and the paused stage timer need restoring.
+     */
+    public void handlePlayerRejoin(Player p) {
+        if (awaitingRejoin.remove(p.getUniqueId()) == null) return;
+
+        if (pausedSince > 0) {
+            shiftActiveActionTimer(System.currentTimeMillis() - pausedSince);
+            pausedSince = -1;
+        }
+
+        broadcastMessage("game.player_rejoined", "<player>", p.getName());
+        participants.add(p);
+
+        SchedulerCompat.runAtEntity(plugin, p, () -> {
+            if (!p.isOnline()) return;
+            p.setFallDistance(0);
+            if (!p.isDead() && !ownsLocation(p.getLocation())) {
+                Location spawn = getRespawnLocation();
+                if (spawn != null) p.teleportAsync(spawn);
+            }
+            String msg = plugin.getLanguageManager().getString("game.rejoined", "&aWelcome back! You have rejoined your Dungeon.");
+            p.sendMessage(ColorUtils.parseWithPrefix(msg));
+        });
+    }
+
+    private boolean isPausedForRejoin() {
+        return (participants == null || participants.isEmpty()) && !awaitingRejoin.isEmpty();
+    }
+
+    // Stage logic does not tick while paused, so give the current objective its lost time back
+    private void shiftActiveActionTimer(long millis) {
+        if (millis <= 0 || currentStageIndex >= stages.size()) return;
+        List<DungeonAction> actions = stages.get(currentStageIndex);
+        if (currentActionIndex >= actions.size()) return;
+        DungeonAction action = actions.get(currentActionIndex);
+        if (action.getStartTimeMillis() > 0) {
+            action.setStartTimeMillis(action.getStartTimeMillis() + millis);
+        }
+    }
+
     public void stop(boolean teleport) {
         stop(teleport, DungeonEndEvent.EndReason.FORCE_STOPPED);
     }
@@ -932,6 +1064,7 @@ public class DungeonGame {
         if (kickTask != null && !kickTask.isCancelled()) kickTask.cancel();
 
         try {
+            releaseAllHeldPlayers(true);
             deductConfiguredEndLives(reason);
 
             if (reason != DungeonEndEvent.EndReason.CLEARED && template != null && template.settings().cooldownOnLeave()) {
@@ -1061,6 +1194,7 @@ public class DungeonGame {
         if (kickTask != null && !kickTask.isCancelled()) kickTask.cancel();
 
         try {
+            releaseAllHeldPlayers(false);
             if (participants != null) {
                 for (Player p : participants) {
                     plugin.getDungeonManager().removeGame(p.getUniqueId());
@@ -1108,6 +1242,7 @@ public class DungeonGame {
         if (savedStates != null) savedStates.clear();
         if (playerKills != null) playerKills.clear();
         if (confiscatedItems != null) confiscatedItems.clear();
+        awaitingRejoin.clear();
 
         if (stages != null) {
             for (List<DungeonAction> list : stages) {

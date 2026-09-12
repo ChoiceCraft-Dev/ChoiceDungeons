@@ -72,6 +72,30 @@ dungeon:
   # FAIL: The entire team fails immediately.
   out-of-lives-action: "SPECTATE"
 
+  # Vanilla world behaviour inside the dungeon worlds this plugin creates.
+  # true = normal Minecraft behaviour, false = turned off.
+  # The defaults keep dungeon maps static; only fluid flow is left on because maps often use water or lava.
+  # Dungeon files can override any flag under settings.world-flags.
+  world-flags:
+    # Leaves decaying when no log is nearby
+    leaf-decay: false
+    # Crops, sugar cane, cactus, melons, pumpkins and similar plants growing
+    crop-growth: false
+    # Saplings and mushrooms growing into trees
+    tree-growth: false
+    # Grass, mycelium, vines, sculk and similar blocks spreading
+    block-spread: false
+    # Ice and snow melting, coral dying, farmland drying out
+    block-fade: false
+    # Snow and ice forming, copper oxidising, concrete and cobblestone forming
+    block-form: false
+    # Water and lava flowing
+    fluid-flow: true
+    # Natural, patrol, trap and village-defence mob spawns (dungeon waves are not affected)
+    natural-mob-spawning: false
+    # Rain and thunder starting on their own
+    weather-cycle: false
+
   gameplay:
     # Keep inventory and EXP when a player dies inside the dungeon?
     keep-inventory-on-death: true
@@ -92,6 +116,11 @@ dungeon:
     randomize-stages: false
     # Apply dungeon cooldown even if the player leaves early, disconnects, or fails?
     cooldown-on-leave: false
+    # Seconds a player who disconnects mid-run keeps their spot. While nobody is online the dungeon
+    # pauses and stays alive this long, so a solo player can log back in and carry on.
+    # Leave penalties (cooldown-on-leave, lives-deducted-on-leave) are only charged if they do not return in time.
+    # 0 = end the run as soon as it is empty.
+    empty-dungeon-timeout: 300
     # Prevent players from using teleport commands like /tp, /warp, /spawn inside the dungeon?
     # Leave this as false if you are using cross-server plugins (like HuskHomes) so players can warp out securely.
     block-teleport-commands: false
