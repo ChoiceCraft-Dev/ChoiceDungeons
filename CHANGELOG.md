@@ -6,6 +6,45 @@ Releases follow [Semantic Versioning](https://semver.org/) and are cut by
 
 ## [Unreleased]
 
+## [1.7.3] — 2026-09-13
+
+### Fixed
+
+- **Every slime death on Paper 26.2 threw `NoSuchMethodError`, and slimes split
+  inside dungeons.** 172 stack traces in one day on the affected server.
+  `DungeonListener.onSlimeSplit` is three lines — cancel the split if the world is
+  a dungeon instance — and it died on its first instruction, so it never reached
+  `setCancelled` and the split it exists to stop went ahead every time. Nothing in
+  the source was wrong; the plugin was compiled against **paper-api 1.21.11** while
+  servers run **Paper 26.2**, which unified slimes and magma cubes under
+  `AbstractCubeMob`:
+
+  ```
+  was:  public Slime getEntity()
+  now:  public AbstractCubeMob getEntity()
+  ```
+
+  A covariant return change is invisible in source and fatal in bytecode: the old
+  descriptor is baked into the call site, and the JVM raises `NoSuchMethodError`
+  before the method body runs.
+
+### Changed
+
+- **Built against `paper-api:26.2.build.62-beta`** instead of `1.21.11-R0.1-SNAPSHOT`,
+  so the compile target tracks the deployment target. This is the actual fix — no
+  source change was needed, and the whole codebase compiled against the new API
+  without an error.
+- **Java 25 toolchain**, up from 21. Not optional: paper-api 26.2 declares JVM 25
+  and Gradle refuses to resolve it onto a 21 toolchain. It is also what the servers
+  already run (`Running Java 25 … Temurin-25.0.4.1+1`). Gradle itself still runs on
+  21; only the compile toolchain moved, and CI installs both.
+
+### Note for operators
+
+Any server on Paper 26.2 running 1.7.2 or earlier has this. The symptom in the log
+is `NoSuchMethodError: 'org.bukkit.entity.Slime …SlimeSplitEvent.getEntity()'`, and
+the symptom in game is slimes multiplying inside dungeon instances.
+
 ## [1.7.2] — 2026-09-12
 
 ### Fixed

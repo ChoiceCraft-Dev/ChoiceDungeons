@@ -68,7 +68,11 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          # 25 for the compile toolchain (paper-api 26.2 requires it), 21 to run
+          # Gradle itself, which cannot host a 25 daemon on this Gradle version.
+          java-version: |
+            25
+            21
           cache: gradle
 
       - name: Build ${{ needs.check.outputs.version }}

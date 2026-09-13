@@ -1,7 +1,20 @@
 // `version` comes from gradle.properties; a release build overrides it with -Pversion=X.Y.Z.
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    // Built against the API the servers actually run, NOT the latest 1.21.x
+    // coordinate. Paper 26.2 changed SlimeSplitEvent.getEntity() from returning
+    // Slime to AbstractCubeMob; compiling against 1.21.11 baked the old descriptor
+    // into the call site, and every slime death on a live server then threw
+    // NoSuchMethodError before the handler body ran — silently, for months. A
+    // covariant return change is invisible in source and fatal in bytecode, so the
+    // compile target has to track the deployment target.
+    //
+    // This exact coordinate is what the sibling ChoiceCraft plugins pin, so one
+    // server runs them all against one API. It is also the newest 26.2 build that
+    // still resolves on a Java 21 toolchain: the -stable builds require JVM 25,
+    // and moving this project to 25 is a bigger change than a bug fix should carry.
+    // It already has the AbstractCubeMob signature, which is what matters here.
+    compileOnly("io.papermc.paper:paper-api:26.2.build.62-beta")
     compileOnly("io.lumine:Mythic-Dist:5.11.2-SNAPSHOT")
     compileOnly("io.lumine:MythicLib-dist:1.7.1-SNAPSHOT")
     compileOnly("net.Indyuce:MMOItems-API:6.10.1-SNAPSHOT")
@@ -16,7 +29,7 @@ dependencies {
 
     // compileOnly does not reach the test classpath, and the tests parse real config
     // and language resources with Bukkit's YamlConfiguration.
-    testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    testImplementation("io.papermc.paper:paper-api:26.2.build.62-beta")
 }
 
 tasks.named('jar') {

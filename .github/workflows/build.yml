@@ -52,7 +52,11 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          # 25 for the compile toolchain (paper-api 26.2 requires it), 21 to run
+          # Gradle itself, which cannot host a 25 daemon on this Gradle version.
+          java-version: |
+            25
+            21
           cache: 'gradle' # Automatically handles Gradle caching (equivalent to GitLab cache)
 
       # --- STEP 1: NOTIFY BUILD START ---
