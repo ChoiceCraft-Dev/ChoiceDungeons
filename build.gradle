@@ -25,7 +25,12 @@ subprojects {
         maven { url = "https://repo.onarandombox.com/content/groups/public/" }
     }
 
-    def targetJavaVersion = 21
+    // 25, because that is what the servers run — confirmed from the boot line:
+    // "Running Java 25 (OpenJDK 64-Bit Server VM 25.0.4.1+1-LTS)". It is also a
+    // hard requirement for compiling against Paper 26.2 at all: its paper-api
+    // artifact declares JVM 25 and Gradle refuses to resolve it onto a 21
+    // toolchain. Gradle itself still runs on 21; only the compile toolchain is 25.
+    def targetJavaVersion = 25
     java {
         def javaVersion = JavaVersion.toVersion(targetJavaVersion)
         sourceCompatibility = javaVersion
