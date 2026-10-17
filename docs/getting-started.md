@@ -8,7 +8,7 @@ title: Getting Started
 Requirements:
 
 - Paper server compatible with the plugin build target.
-- Java 21 or newer.
+- Java 25 or newer (the servers run Java 25; the plugin is compiled for it).
 - PlaceholderAPI is optional but recommended for conditions and placeholders.
 - MythicMobs is optional for Mythic actions.
 - MMOItems is optional for MMOItems rewards/items.
@@ -66,7 +66,7 @@ plugins/SinceDungeon-PremiumAddon/
 
 ## Build From Source
 
-The project uses Gradle and Java 21.
+The project uses Gradle (run on Java 21) and compiles with a Java 25 toolchain against Paper 26.2.
 
 ```bash
 ./gradlew build

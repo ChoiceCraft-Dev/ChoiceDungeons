@@ -10,10 +10,12 @@ dependencies {
     // compile target has to track the deployment target.
     //
     // This exact coordinate is what the sibling ChoiceCraft plugins pin, so one
-    // server runs them all against one API. It is also the newest 26.2 build that
-    // still resolves on a Java 21 toolchain: the -stable builds require JVM 25,
-    // and moving this project to 25 is a bigger change than a bug fix should carry.
-    // It already has the AbstractCubeMob signature, which is what matters here.
+    // server runs them all against one API, and it is the build the released 1.7.3
+    // jar was compiled against (the jar SkyBlock runs is byte-identical to it). It
+    // already has the AbstractCubeMob signature, which is what matters here. It is
+    // a -beta build, and stable 26.2 builds exist; moving to one changes the jar, so
+    // it is a separate change, not part of this fix. The compile target is Java 25
+    // (the toolchain below), so the plugin no longer loads on a Java 21 server.
     compileOnly("io.papermc.paper:paper-api:26.2.build.62-beta")
     compileOnly("io.lumine:Mythic-Dist:5.11.2-SNAPSHOT")
     compileOnly("io.lumine:MythicLib-dist:1.7.1-SNAPSHOT")

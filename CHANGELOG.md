@@ -6,7 +6,7 @@ Releases follow [Semantic Versioning](https://semver.org/) and are cut by
 
 ## [Unreleased]
 
-## [1.7.3] — 2026-09-13
+## [1.7.3] — 2026-10-17
 
 ### Fixed
 
@@ -44,6 +44,11 @@ Releases follow [Semantic Versioning](https://semver.org/) and are cut by
 Any server on Paper 26.2 running 1.7.2 or earlier has this. The symptom in the log
 is `NoSuchMethodError: 'org.bukkit.entity.Slime …SlimeSplitEvent.getEntity()'`, and
 the symptom in game is slimes multiplying inside dungeon instances.
+
+This release also drops support for older servers: it is compiled for **Java 25** against
+**Paper 26.2**, so it will not load on a Java 21 server (`UnsupportedClassVersionError`), and
+on Paper 1.21.x the first slime split fails because `AbstractCubeMob` does not exist there.
+Stay on 1.7.2 for those servers.
 
 ## [1.7.2] — 2026-09-12
 

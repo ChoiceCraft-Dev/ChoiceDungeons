@@ -3,7 +3,7 @@ layout: home
 title: SinceDungeon Wiki
 ---
 
-SinceDungeon is a Paper 1.21 dungeon plugin for instanced, configurable dungeon runs. It provides template-world
+SinceDungeon is a Paper 26.2 dungeon plugin for instanced, configurable dungeon runs. It provides template-world
 instancing, staged objectives, built-in party support, lives and cooldown systems, reward chests, leaderboards,
 PlaceholderAPI support, an in-game editor, and an extensible Java API.
 
@@ -30,8 +30,8 @@ The left navigation contains every available documentation page.
 
 ## Requirements
 
-- Paper API: **1.21**
-- Java: **21**
+- Paper API: **26.2** (paper-api 26.2.build.62-beta)
+- Java: **25**
 - Optional integrations:
     - PlaceholderAPI
     - MythicMobs
