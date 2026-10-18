@@ -66,7 +66,7 @@ plugins/SinceDungeon-PremiumAddon/
 
 ## Build From Source
 
-The project uses Gradle (run on Java 21) and compiles with a Java 25 toolchain against Paper 26.2.
+The project uses Gradle (run on Java 21) and compiles with a Java 25 toolchain against Paper 26.3.
 
 ```bash
 ./gradlew build

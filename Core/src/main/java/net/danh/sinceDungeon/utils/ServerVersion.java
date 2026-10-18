@@ -18,12 +18,10 @@ public class ServerVersion {
 
     static {
         try {
-            String versionString = Bukkit.getBukkitVersion().split("-")[0];
-            String[] parts = versionString.split("\\.");
-
-            if (parts.length > 0) major = Integer.parseInt(parts[0]);
-            if (parts.length > 1) minor = Integer.parseInt(parts[1]);
-            if (parts.length > 2) patch = Integer.parseInt(parts[2]);
+            int[] parsed = MinecraftVersionParser.parse(Bukkit.getBukkitVersion());
+            major = parsed[0];
+            minor = parsed[1];
+            patch = parsed[2];
         } catch (Exception e) {
             Bukkit.getLogger().warning("[SinceDungeon] Cannot parse server build version!");
         }

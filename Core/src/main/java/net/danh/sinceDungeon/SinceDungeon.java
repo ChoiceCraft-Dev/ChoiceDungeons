@@ -146,7 +146,7 @@ public final class SinceDungeon extends JavaPlugin {
         registerCommands();
         cleanUpStuckWorlds();
 
-        if (ServerVersion.isOlderThan(1, 21, 11) || ServerVersion.isAtLeast(26, 1)) {
+        if (ServerVersion.isOlderThan(1, 21, 11)) {
             getLogger().warning(languageManager.getString("admin.log.version_warning"));
         }
 

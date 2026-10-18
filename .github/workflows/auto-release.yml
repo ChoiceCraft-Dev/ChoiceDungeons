@@ -68,7 +68,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          # 25 for the compile toolchain (paper-api 26.2 requires it), 21 to run
+          # 25 for the compile toolchain (paper-api 26.3 requires it), 21 to run
           # Gradle itself, as it always has; the toolchain is what the jar targets.
           java-version: |
             25

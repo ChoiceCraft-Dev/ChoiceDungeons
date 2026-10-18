@@ -6,6 +6,17 @@ Releases follow [Semantic Versioning](https://semver.org/) and are cut by
 
 ## [Unreleased]
 
+### Changed
+
+- The Core and Premium modules now compile and test against Paper API
+  `26.3.build.205-stable`; the existing Java 25 toolchain is unchanged.
+
+### Fixed
+
+- Paper 26.3 is no longer labelled "below required/unsupported" during startup.
+  Bukkit version parsing now accepts both two- and three-component Paper 26.x
+  strings and ignores their build suffixes.
+
 ## [1.7.3] — 2026-10-17
 
 ### Fixed
