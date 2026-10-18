@@ -6,6 +6,8 @@ Releases follow [Semantic Versioning](https://semver.org/) and are cut by
 
 ## [Unreleased]
 
+## [1.7.4] — 2026-10-18
+
 ### Changed
 
 - The Core and Premium modules now compile and test against Paper API
